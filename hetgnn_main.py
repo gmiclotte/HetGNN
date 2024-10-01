@@ -43,15 +43,15 @@ if __name__=='__main__':
     parser.add_argument('--wandb_user', type=str, default='jilim97', help='wandb username')
 
     # model and train args
-    parser.add_argument('--cancer_type', type=str, default="Neuroblastoma", help='Cancer type to train for')
+    parser.add_argument('--cancer_type', type=str, default='Neuroblastoma', help='Cancer type to train for')
     parser.add_argument('--drugs', type=int, default="0", help='Use the intergrated graph with drugs and targets')
     parser.add_argument('--ppi', type=str, default="Reactome", help='Which ppi to use as scaffold')
     parser.add_argument('--crp_pos', type=float, default=-1.5, help='crispr threshold for positives')
-    parser.add_argument('--epochs', type=int, default=10, help='num epochs')
+    parser.add_argument('--epochs', type=int, default=30, help='num epochs')
     parser.add_argument('--npr', type=float, default=3.0, help='Negatiev sampling ratio')
     parser.add_argument('--emb_dim', type=str, default="512", help='Embedding dimension')
     parser.add_argument('--train_neg_sampling', type=int, default=1, help='If 1(true) negatives will be sampled BEFORE training')
-    parser.add_argument('--val_ratio', type=float, default=0.2, help='percentage training data')
+    parser.add_argument('--val_ratio', type=float, default=0.1, help='percentage training data')
     parser.add_argument('--test_ratio', type=float, default=0.2, help='percentage test data')
     parser.add_argument('--disjoint_train_ratio', type=float, default=0.0, help='percentage disjoint train data')
     parser.add_argument('--dropout', type=float, default=0.2, help='dropout ratio')
@@ -87,15 +87,15 @@ if __name__=='__main__':
     group_name = f"{args.gene_feat}"
 
     if args.log:
-        run = wandb.init(project="Final_Combination_Lin", entity=args.wandb_user,  config=args, name=experiment_name, group=group_name) 
+        run = wandb.init(project="NB_GPU_fin", entity=args.wandb_user,  config=args, name=experiment_name, group=group_name) 
 
-    BASE_PATH = "/kyukon/data/gent/vo/000/gvo00095/vsc45456/"
+    BASE_PATH = "/data/jilim/"
     # BASE_PATH = '/'.join(os.path.dirname(os.path.realpath(__file__)).split('/')[:-1])
 
     gpu_available = torch.cuda.is_available()
     print(f"GPU Available: {gpu_available}")
     if gpu_available:
-        device = 'cuda'
+        device = 'cuda:1'
     else:
         device = 'cpu'
 
@@ -320,7 +320,7 @@ if __name__=='__main__':
                         'assay_corr_sp': assay_corr.mean()})
 
 
-    path = BASE_PATH + f'results_comb_lin/model/{args.gene_feat}-{args.cell_feat}-seedwith{args.seed}-at{final_epoch}.pt'
+    path = BASE_PATH + f'NB_results/model/{args.gene_feat}-{args.cell_feat}-seedwith{args.seed}-at{final_epoch}.pt'
     torch.save(best_ap_model, path)
     # torch.save(best_loss_model, path)
 
@@ -397,14 +397,14 @@ if __name__=='__main__':
     cell_embs_df = pd.DataFrame(data=embs['cell'].cpu().detach().numpy(), index=cells)
     # cell_embs_df_copy = pd.DataFrame(data=cell_embeddings, index=cells)
     
-    gene_embs_df.to_csv(BASE_PATH+f"results_comb_lin/file/"\
+    gene_embs_df.to_csv(BASE_PATH+f"NB_results/file/"\
                         f"{args.cancer_type.replace(' ', '_')}_{args.ppi}{args.remove_rpl}_{args.useSTD}{args.remove_commonE}_crispr{str(args.crp_pos).replace('.','_')}_HetGNN_gene_embs{args.drugs}_{args.gene_feat}_{args.cell_feat}_{args.seed}.csv")
-    cell_embs_df.to_csv(BASE_PATH+f"results_comb_lin/file/"\
+    cell_embs_df.to_csv(BASE_PATH+f"NB_results/file/"\
                         f"{args.cancer_type.replace(' ', '_')}_{args.ppi}{args.remove_rpl}_{args.useSTD}{args.remove_commonE}_crispr{str(args.crp_pos).replace('.','_')}_HetGNN_cell_embs{args.drugs}_{args.gene_feat}_{args.cell_feat}_{args.seed}.csv")
 
     if args.drugs:
         drug_embs_df = pd.DataFrame(data=embs['drug'].cpu().detach().numpy(), index=drugs)
-        drug_embs_df.to_csv(BASE_PATH+f"results_comb_lin/file/"\
+        drug_embs_df.to_csv(BASE_PATH+f"NB_results/file/"\
                             f"{args.cancer_type.replace(' ', '_')}_{args.ppi}{args.remove_rpl}_{args.useSTD}{args.remove_commonE}_crispr{str(args.crp_pos).replace('.','_')}_HetGNN_drug_embs_{args.gene_feat}_{args.cell_feat}_{args.seed}.csv")
     
     if args.save_full_pred:
@@ -412,7 +412,7 @@ if __name__=='__main__':
                                                     edge_index=cl_probs, index=cls_int.numpy(),
                                                     columns=heterodata_obj['gene'].node_id.numpy())
 
-        tot_pred_deps.to_csv(BASE_PATH+f"results_comb_lin/file/"\
+        tot_pred_deps.to_csv(BASE_PATH+f"NB_results/file/"\
                             f"{args.cancer_type.replace(' ', '_')}_{args.ppi}{args.remove_rpl}_{args.useSTD}{args.remove_commonE}_crispr{str(args.crp_pos).replace('.','_')}_HetGNN{args.drugs}_{args.gene_feat}_{args.cell_feat}_{args.seed}.csv")
         
 

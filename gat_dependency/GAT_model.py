@@ -120,7 +120,7 @@ class MLP_baseline_old(nn.Module):
         else:
             self.final = nn.Linear(in_features=emb_dim+no_exrta_features, out_features=1)
 
-        self.dropout = nn.Dropout(p=dropout)       
+        self.dropout = nn.Dropout(p=dropout)
         self.act_fn = act_fn
 
     def forward(self, x, extra_features=None, return_embs=False):
@@ -168,7 +168,7 @@ class MLP_baseline(nn.Module):
             layers.append(OrderedDict([(f'final', nn.Linear(in_features=hidden_features[-1], out_features=1))]))
             layers = OrderedDict(chain(*[i.items() for i in layers]))
             self.mlp_baseline = nn.Sequential(layers)
-            
+
         else:
             layers = [(OrderedDict([(f'final', nn.Linear(in_features=hidden_features[-1], out_features=1))]))]
             self.mlp_baseline = nn.Sequential(layers)
@@ -185,7 +185,7 @@ class MLP_baseline(nn.Module):
             x = x[:, 0, :] * x[:, 1, :] # construct edge embedding
 
         return self.mlp_baseline(x)
-        
+
 
 class drug_sensitivity_prediction(nn.Module):
     def __init__(self, hidden_features, classes, dropout, act_fn=nn.ReLU()):
@@ -195,7 +195,7 @@ class drug_sensitivity_prediction(nn.Module):
         layers = [dense_layer(in_features=hidden_features[ix],
                               out_features=hidden_features[ix+1],
                               act_fn=act_fn, dropout=dropout, ix=ix) for ix in range(num_layers)]
-        
+
         layers.append(OrderedDict([(f'final', nn.Linear(in_features=hidden_features[-1], out_features=classes))]))
 
         layers = OrderedDict(chain(*[i.items() for i in layers]))
@@ -220,18 +220,18 @@ class SL_link_prediction(nn.Module):
         self.embedding = nn.Embedding(num_embeddings=N_nodes, embedding_dim=emb_dim)
         if pretrained_embs is not None:
             self.embedding.weight.data = torch.nn.Parameter(pretrained_embs)
-            
+
         layers = [dense_layer(in_features=hidden_features[ix],
                               out_features=hidden_features[ix+1],
                               act_fn=act_fn, dropout=dropout, ix=ix) for ix in range(num_layers)]
-        
+
         layers.append(OrderedDict([(f'final', nn.Linear(in_features=hidden_features[-1], out_features=1))]))
         layers = OrderedDict(chain(*[i.items() for i in layers]))
-        
+
         self.sl_layers = nn.Sequential(layers)
-    
+
     def forward(self, x):
-        
+
         x = self.embedding(x)
         x = x[:, 0, :] * x[:, 1, :] # construct edge embedding
 
@@ -244,7 +244,7 @@ class custom_ReLU(nn.Module):
         self.crispr_threshold = crispr_threshold
     def forward(self, x):
         return x if x < self.crispr_threshold else 0
-    
+
 # ------------------------------------------------------------------------------------------------------
 
 class GCNsimple(nn.Module):
@@ -255,7 +255,7 @@ class GCNsimple(nn.Module):
         self.gnn2 = gnnlayer(in_channels=hidden_channels[1], out_channels=hidden_channels[2], aggr = aggregate, **kwargs)
         # self.gnn3 = gnnlayer(in_channels=hidden_channels[2], out_channels=hidden_channels[3], aggr = aggregate, **kwargs)
 
-        
+
     def forward(self, x: Tensor, edge_index: Tensor) -> Tensor:
 
         x = self.gnn1(x, edge_index)
@@ -264,7 +264,7 @@ class GCNsimple(nn.Module):
 
         # x = F.relu(self.gnn2(x, edge_index))
         # x = F.dropout(x, training=self.training, p=0.2)
-        
+
         # x = F.relu(self.gnn3(x, edge_index))
         # x = F.dropout(x, training=self.training, p=0.2)
 
@@ -278,7 +278,7 @@ class GATsimple(nn.Module):
         gnnlayer = gnn_factory[layer_name]
         self.gnn1 = gnnlayer(in_channels=hidden_channels[0], out_channels=hidden_channels[1], add_self_loops=False)
         self.gnn2 = gnnlayer(in_channels=hidden_channels[1], out_channels=hidden_channels[2], add_self_loops=False)
-        
+
     def forward(self, x: Tensor, edge_index: Tensor) -> Tensor:
 
         # x, attw1 = self.gnn1(x=x, edge_index=edge_index, return_attention_weights=True)
@@ -288,8 +288,8 @@ class GATsimple(nn.Module):
 
         x, (indices, att_w) = self.gnn2(x=x, edge_index=edge_index, return_attention_weights=True)
         return x
-    
-    
+
+
 class GCNcustom(nn.Module):
     def __init__(self, features: list, layer_name: str='sageconv', heads: list=None,
                  dropout: float=0.2, act_fn: torch.nn.modules.activation=torch.nn.ReLU,
@@ -306,13 +306,13 @@ class GCNcustom(nn.Module):
             self.return_attention_weights = False
 
         # Define layers
-        
+
         if layer_name == 'GAT':
             layers = [gat_layer(in_features=features[i]*self.heads[i], hidden_features=features[i+1],
                             act_fn=act_fn, dropout=self.dropout, heads=self.heads[i+1], ix=i,
                             layer_name=layer_name, layer=gnn_factory[layer_name], add_self_loops=False)
                   for i in range(self.num_layers)]
-        
+
             layers = OrderedDict(chain(*[i.items() for i in layers]))
             # self.gnn_layers = geom_nn.Sequential('x, edge_index, return_attention_weights', layers)
             self.gnn_layers = geom_nn.Sequential('x, edge_index', layers)
@@ -321,7 +321,7 @@ class GCNcustom(nn.Module):
                             act_fn=act_fn, dropout=self.dropout, heads=None, ix=i,
                             layer_name=layer_name, layer=gnn_factory[layer_name])
                   for i in range(self.num_layers)]
-        
+
             layers = OrderedDict(chain(*[i.items() for i in layers]))
             self.gnn_layers = geom_nn.Sequential('x, edge_index', layers)
 
@@ -331,7 +331,7 @@ class GCNcustom(nn.Module):
         return embeddings
 
 class LPsimple_classif(nn.Module):
-    
+
     # for now only do dot product so only forward pass
     def forward(self, x_nt1: Tensor, x_nt2: Tensor, edge_label_index: Tensor) -> Tensor:
 
@@ -340,7 +340,7 @@ class LPsimple_classif(nn.Module):
 
         # Apply dot product for final prediction
         return (edge_feat_nt1 * edge_feat_nt2).sum(dim=-1)
-    
+
 class LPdeep_classif(nn.Module):
     def __init__(self, in_features) -> None:
         super().__init__()
@@ -354,12 +354,12 @@ class LPdeep_classif(nn.Module):
 
             nn.Linear(in_features=64, out_features=1))
     def forward(self, x_nt1: Tensor, x_nt2: Tensor, edge_label_index: Tensor) -> Tensor:
-        
+
         edge_feat_nt1 = x_nt1[edge_label_index[0]]
         edge_feat_nt2 = x_nt2[edge_label_index[1]]
 
         edge_ = (edge_feat_nt1 * edge_feat_nt2)
-        
+
         return self.lin_layers(edge_)
 
 class Dynamic_ConvLayer(nn.Module):
@@ -372,20 +372,20 @@ class Dynamic_ConvLayer(nn.Module):
         self.padding = padding
 
     def forward(self, x):
-        self.conv1d = torch.nn.Conv1d(in_channels = self.feat_size, 
+        self.conv1d = torch.nn.Conv1d(in_channels = self.feat_size,
                                     out_channels = self.feat_size,
-                                    kernel_size=self.kernel_size, 
-                                    stride=self.stride, 
+                                    kernel_size=self.kernel_size,
+                                    stride=self.stride,
                                     padding= self.padding,
                                     groups=self.feat_size,
                                     )
-        
+
         return self.conv1d(x)
-    
+
 class HeteroData_GNNmodel(nn.Module):
     def __init__(self, heterodata: HeteroData, node_types: list, node_types_to_pred: list, embedding_dim, features_dim: dict,
                  gcn_model: str, features: list, layer_name: str='sageconv', heads: list=None,
-                 dropout: float=0.2, act_fn: torch.nn.modules.activation=torch.nn.ReLU, lp_model: str='simple', 
+                 dropout: float=0.2, act_fn: torch.nn.modules.activation=torch.nn.ReLU, lp_model: str='simple',
                  aggregate: str='mean' , **kwargs):
         super().__init__()
         # We learn separate embedding matrices for each node type
@@ -400,11 +400,11 @@ class HeteroData_GNNmodel(nn.Module):
             self.nt1_emb = torch.nn.Embedding(num_embeddings=heterodata[node_types[0]].num_nodes,
                                             embedding_dim=embedding_dim)
             self.nt2_emb = torch.nn.Embedding(num_embeddings=heterodata[node_types[1]].num_nodes,
-                                            embedding_dim=embedding_dim)                              
+                                            embedding_dim=embedding_dim)
             if len(node_types) == 3:
                 self.nt3_lin = torch.nn.Linear(features_dim[node_types[2]], embedding_dim)
                 self.nt3_emb = torch.nn.Embedding(num_embeddings=heterodata[node_types[2]].num_nodes,
-                                                  embedding_dim=embedding_dim)    
+                                                  embedding_dim=embedding_dim)
         elif isinstance(embedding_dim, dict):
             self.nt1_lin = torch.nn.Linear(features_dim[node_types[0]], embedding_dim[node_types[0]])
             self.nt2_lin = torch.nn.Linear(features_dim[node_types[1]], embedding_dim[node_types[1]])
@@ -415,10 +415,10 @@ class HeteroData_GNNmodel(nn.Module):
             if len(node_types) == 3:
                 self.nt3_lin = torch.nn.Linear(features_dim[node_types[2]], embedding_dim[node_types[2]])
                 self.nt3_emb = torch.nn.Embedding(num_embeddings=heterodata[node_types[2]].num_nodes,
-                                                  embedding_dim=embedding_dim[node_types[2]])    
+                                                  embedding_dim=embedding_dim[node_types[2]])
         else:
             TypeError,"Use correct embedding dim type"
-        
+
         # Instantiate homoGNN
         if self.gcn_model == 'simple':
             self.gnn = GCNsimple(hidden_channels=features, layer_name=layer_name, aggregate=aggregate, **kwargs)
@@ -429,7 +429,7 @@ class HeteroData_GNNmodel(nn.Module):
         else:
             self.gnn = GCNcustom(features=features,
                                  layer_name=layer_name, heads=heads,
-                                 dropout=dropout, act_fn=act_fn) # CHECK REST OF THIS FUNCTION 
+                                 dropout=dropout, act_fn=act_fn) # CHECK REST OF THIS FUNCTION
             self.gnn = geom_nn.to_hetero(self.gnn.gnn_layers, metadata=heterodata.metadata())
 
         # Convert to heteroGNN
@@ -444,7 +444,7 @@ class HeteroData_GNNmodel(nn.Module):
                 return_embeddings: bool=False, x_dict: dict=None) -> Tensor:
         etl = edge_type_label.split(',')
         # x_dict holds the feature matrix of all node_types
-        
+
         # x_dict = data.x_dict
         if len(self.node_types) == 2:
             # x_dict = {self.node_types[0]: self.nt1_emb(data[self.node_types[0]].node_id),
@@ -453,12 +453,12 @@ class HeteroData_GNNmodel(nn.Module):
             #           self.node_types[1]: self.nt2_lin(data[self.node_types[1]].x)}
             # x_dict = {self.node_types[0]: self.nt1_emb(data[self.node_types[0]].node_id) + self.nt1_lin(data[self.node_types[0]].x),
             #           self.node_types[1]: self.nt2_emb(data[self.node_types[1]].node_id) + self.nt2_lin(data[self.node_types[1]].x)}
-            # x_dict = {self.node_types[0]: data[self.node_types[0]].x,
-            #            self.node_types[1]: data[self.node_types[1]].x}
             x_dict = {self.node_types[0]: data[self.node_types[0]].x,
-                      self.node_types[1]: self.nt2_emb(data[self.node_types[1]].node_id)}
-            # x_dict = {self.node_types[0]: self.nt1_lin(data[self.node_types[0]].x),
+                       self.node_types[1]: data[self.node_types[1]].x}
+            # x_dict = {self.node_types[0]: data[self.node_types[0]].x,
             #           self.node_types[1]: self.nt2_emb(data[self.node_types[1]].node_id)}
+            # x_dict = {self.node_types[0]: data[self.node_types[0]].x,
+            #           self.node_types[1]: self.nt2_emb(data[self.node_types[1]].node_id) + self.nt2_lin(data[self.node_types[1]].x)}
             # x_dict = {self.node_types[0]:  self.nt1_lin(data[self.node_types[0]].x) + self.nt1_emb(data[self.node_types[0]].node_id),
             #            self.node_types[1]: self.nt2_lin(data[self.node_types[1]].x) + self.nt2_emb(data[self.node_types[1]].node_id)}
         # else:
@@ -495,7 +495,7 @@ class HeteroData_GNNmodel(nn.Module):
             return pred, x_dict
         else:
             return pred
-    
+
 
 
 class GAEEncoder(nn.Module):
@@ -524,7 +524,7 @@ class GAEEncoder(nn.Module):
 
         self.gnn = GCNsimple(hidden_channels=features, layer_name=layer_name, **kwargs)
         self.gnn = geom_nn.to_hetero(self.gnn, metadata=heterodata.metadata())
-        
+
     def forward(self, data: HeteroData) -> Tensor:
 
         x_dict = {i: emb_i(data[i].node_id) for i, emb_i in zip(self.node_types, [self.nt1_emb, self.nt2_emb, self.nt3_emb])}
@@ -595,7 +595,7 @@ def recon_loss(self, decoder, z: Tensor, pos_edge_index: Tensor,
 
 
 class DLP_model(nn.Module):
-    def __init__(self, data: Data, features_dim: dict, embedding_dim: int=128, dropout: float=0.2, 
+    def __init__(self, data: Data, features_dim: dict, embedding_dim: int=128, dropout: float=0.2,
                 embedding_method: str='emb',  **kwargs):
         super().__init__()
 
@@ -607,7 +607,7 @@ class DLP_model(nn.Module):
                                         embedding_dim=embedding_dim)
         self.emb_lin = torch.nn.Linear(embedding_dim, embedding_dim)
         self.gene_lin = torch.nn.Linear(features_dim['gene'], embedding_dim)
-        self.cell_lin = torch.nn.Linear(features_dim['cell'], embedding_dim)    
+        self.cell_lin = torch.nn.Linear(features_dim['cell'], embedding_dim)
 
         self.lin_layers = nn.Sequential(
             nn.Linear(in_features=embedding_dim, out_features=32),
@@ -625,13 +625,13 @@ class DLP_model(nn.Module):
         index = data.edge_label_index
 
         cell_index = index[1]
-        gene_index = index[0]    
+        gene_index = index[0]
 
         # Count number of gene nodes
         node_types = data.node_type
         unique_node_types, node_type_counts = node_types.unique(return_counts=True)
-        gene_num = node_type_counts[0]    
-        
+        gene_num = node_type_counts[0]
+
         # Embedding method
         if self.embedding_method == 'emb':
             emb = self.emb(data.node_id)

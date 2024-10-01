@@ -12,7 +12,8 @@ import pickle
 import torch
 
 cancer_type = 'Neuroblastoma'
-BASE_PATH = "/kyukon/data/gent/vo/000/gvo00095/vsc45456/"
+#cancer_type = 'Non-Small Cell Lung Cancer_Lung Neuroendocrine Tumor'
+BASE_PATH = "/data/jilim/"
 ppi = "Reactome"
 remove_rpl = "_noRPL"
 remove_commonE = ""
@@ -20,7 +21,7 @@ useSTD = "STD"
 crispr_threshold_pos = -1.5
 #drugtarget_nw = "_drugtarget"
 drugtarget_nw = ""
-cell_feat_name = "expression"
+cell_feat_name = "cnv"
 gene_feat_name = 'cgp'
 
 with open(BASE_PATH+f"multigraphs/{cancer_type.replace(' ', '_')}_{ppi}{remove_rpl}_{useSTD}{remove_commonE}_crispr{str(crispr_threshold_pos).replace('.','_')}.pickle", 'rb') as handle:
@@ -129,7 +130,20 @@ elif cell_feat_name == "cnv":
     ccle_cnv = ccle_cnv[ccle_cnv.columns[ccle_cnv.isna().sum() == 0]]
     ccle_cnv = ccle_cnv.loc[list(set(cells) & set(ccle_cnv.index))]
 
-    hvg_q = ccle_cnv.std().quantile(q=0.99)
+    hvg_q = ccle_cnv.std().quantile(q=0.95)
+    hvg_final = ccle_cnv.std()[ccle_cnv.std() >= hvg_q].index
+
+    ccle_cnv_hvg = ccle_cnv[hvg_final]
+    cell_feat = torch.from_numpy(ccle_cnv_hvg.loc[cell2int.keys()].values).to(torch.float)
+
+elif cell_feat_name == "cnv_abs":
+    path = BASE_PATH+'data/raw/OmicsAbsoluteCNGene.csv'
+    ccle_cnv = pd.read_csv(path, header=0, index_col=0)
+    ccle_cnv.columns = [i.split(' ')[0] for i in ccle_cnv.columns]
+    ccle_cnv = ccle_cnv[ccle_cnv.columns[ccle_cnv.isna().sum() == 0]]
+    ccle_cnv = ccle_cnv.loc[list(set(cells) & set(ccle_cnv.index))]
+
+    hvg_q = ccle_cnv.std().quantile(q=0.95)
     hvg_final = ccle_cnv.std()[ccle_cnv.std() >= hvg_q].index
 
     ccle_cnv_hvg = ccle_cnv[hvg_final]
@@ -177,21 +191,24 @@ elif '_' in cell_feat_name:
         cell_feat = torch.from_numpy(CNV_expression_full.loc[cell2int.keys()].values).to(torch.float)
 
     
-
-elif "SomaticMutation" in cell_feat_name:
-    if 'Damaging' in cell_feat_name:
-        path = BASE_PATH+'data/raw/OmicsSomaticMutationsMatrixDamaging.csv'
-    elif 'Hotspot' in cell_feat_name:
-        path = BASE_PATH+'data/raw/OmicsSomaticMutationsMatrixHotspot.csv'
-    elif 'Dummy' in cell_feat_name:
-        path = BASE_PATH+'data/raw/OmicsSomaticMutationsMatrixDummy2.csv'
+elif "SM" in cell_feat_name:
+    path = BASE_PATH+'data/raw/OmicsSomaticMutationsMatrixDamaging.csv'
     ccle_SM = pd.read_csv(path, header=0, index_col=0)
     ccle_SM.columns = [i.split(' ')[0] for i in ccle_SM.columns]
     ccle_SM = ccle_SM[ccle_SM.columns[ccle_SM.isna().sum() == 0]]
     ccle_SM = ccle_SM.loc[list(set(cells) & set(ccle_SM.index))]
+    ccle_SM_final = ccle_SM.loc[:, (ccle_SM.sum() != 0)]
 
-    cell_feat = torch.from_numpy(ccle_SM.loc[cell2int.keys()].values).to(torch.float)    
+    missing_cells = set(cell2int.keys()) - set(ccle_SM_final.index)
 
+    for cell in missing_cells:
+        ccle_SM_final.loc[cell] = np.zeros(ccle_SM_final.shape[1])
+    cell_feat = torch.from_numpy(ccle_SM_final.loc[cell2int.keys()].values).to(torch.float)  
+ 
+
+elif "MYCN" in cell_feat_name:
+    ccle_MYCN = pd.read_csv('/data/jilim/HetGNN/MYCN_binary.csv', header=0, index_col=0)
+    cell_feat = torch.from_numpy(ccle_MYCN.loc[cell2int.keys()].values).to(torch.float)    
 
 # Drug features 
 if drugtarget_nw:
@@ -237,4 +254,4 @@ assert data.validate()
 print(data)
 
 torch.save(obj=data, f=BASE_PATH+f"multigraphs/heteroData_gene_cell_{cancer_type.replace(' ', '_')}_{ppi}"\
-          f"_crispr{str(crispr_threshold_pos).replace('.','_')}{drugtarget_nw}_{gene_feat_name}_{cell_feat_name}_rnd.pt")
+          f"_crispr{str(crispr_threshold_pos).replace('.','_')}{drugtarget_nw}_{gene_feat_name}_{cell_feat_name}.pt")

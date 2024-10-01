@@ -12,9 +12,9 @@ import pandas as pd
 import numpy as np
 import pickle
 
-BASE_PATH = "/kyukon/data/gent/vo/000/gvo00095/vsc45456/"
-#cancer_type = "Neuroblastoma"
-cancer_type = 'Non-Small Cell Lung Cancer'
+BASE_PATH = "/data/jilim/"
+cancer_type = "Neuroblastoma"
+#cancer_type = 'Non-Small Cell Lung Cancer_Lung Neuroendocrine Tumor'
 #cancer_type_name = "Sarcoma"
 train_ratio = 0.8
 ppi = "Reactome"
